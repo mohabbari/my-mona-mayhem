@@ -8,10 +8,248 @@
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Mona Mayhem</title>
+		<title>Mona Mayhem – GitHub Contribution Battle Arena</title>
 	</head>
 	<body>
-		<h1>Mona Mayhem</h1>
-		<p>Welcome to Mona Mayhem! Time to build a GitHub Contribution Battle Arena.</p>
+		<header>
+			<h1>Mona Mayhem</h1>
+			<p class="tagline">GitHub Contribution Battle Arena</p>
+		</header>
+
+		<form id="battle-form">
+			<div class="fighters">
+				<div class="fighter">
+					<label for="player1">Player 1</label>
+					<input id="player1" name="player1" type="text" placeholder="GitHub username" required />
+				</div>
+				<span class="vs">VS</span>
+				<div class="fighter">
+					<label for="player2">Player 2</label>
+					<input id="player2" name="player2" type="text" placeholder="GitHub username" required />
+				</div>
+			</div>
+			<button type="submit" id="battle-btn">Battle!</button>
+		</form>
+
+		<section id="results" aria-live="polite"></section>
+
+		<style>
+			:root {
+				color-scheme: dark;
+			}
+
+			body {
+				margin: 0;
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 1.5rem;
+				padding: 2rem 1rem;
+				background: #0d1117;
+				color: #e6edf3;
+				font-family: 'Courier New', Courier, monospace;
+			}
+
+			header {
+				text-align: center;
+			}
+
+			h1 {
+				margin: 0;
+				color: #39d353;
+				letter-spacing: 0.1em;
+			}
+
+			.tagline {
+				margin: 0.25rem 0 0;
+				color: #8b949e;
+			}
+
+			#battle-form {
+				width: 100%;
+				max-width: 640px;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 1rem;
+			}
+
+			.fighters {
+				width: 100%;
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				justify-content: center;
+				gap: 1rem;
+			}
+
+			.fighter {
+				flex: 1 1 200px;
+				display: flex;
+				flex-direction: column;
+				gap: 0.25rem;
+			}
+
+			.fighter label {
+				font-size: 0.85rem;
+				color: #8b949e;
+			}
+
+			.fighter input {
+				padding: 0.5rem;
+				background: #161b22;
+				border: 1px solid #30363d;
+				border-radius: 4px;
+				color: #e6edf3;
+				font-family: inherit;
+				font-size: 1rem;
+			}
+
+			.vs {
+				font-weight: bold;
+				color: #f0883e;
+			}
+
+			#battle-btn {
+				padding: 0.6rem 2rem;
+				background: #238636;
+				border: none;
+				border-radius: 4px;
+				color: #fff;
+				font-family: inherit;
+				font-size: 1rem;
+				cursor: pointer;
+			}
+
+			#battle-btn:hover:not(:disabled) {
+				background: #2ea043;
+			}
+
+			#battle-btn:disabled {
+				background: #30363d;
+				cursor: not-allowed;
+			}
+
+			#results {
+				width: 100%;
+				max-width: 640px;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 1rem;
+				text-align: center;
+			}
+
+			#results .results-row {
+				width: 100%;
+				display: flex;
+				flex-wrap: wrap;
+				justify-content: center;
+				gap: 1rem;
+			}
+
+			#results .player-result {
+				flex: 1 1 200px;
+				background: #161b22;
+				border: 1px solid #30363d;
+				border-radius: 4px;
+				padding: 1rem;
+			}
+
+			#results .player-result.error {
+				border-color: #f85149;
+				color: #f85149;
+			}
+
+			#results .winner {
+				font-size: 1.2rem;
+				color: #39d353;
+			}
+		</style>
+
+		<script>
+			const form = document.querySelector<HTMLFormElement>('#battle-form')!;
+			const battleButton = document.querySelector<HTMLButtonElement>('#battle-btn')!;
+			const results = document.querySelector<HTMLElement>('#results')!;
+
+			interface ContributionsResponse {
+				total_contributions: number;
+			}
+
+			interface FetchOutcome {
+				username: string;
+				total?: number;
+				error?: string;
+			}
+
+			async function fetchContributions(username: string): Promise<FetchOutcome> {
+				try {
+					const response = await fetch(`/api/contributions/${encodeURIComponent(username)}`);
+					const body = await response.json();
+					if (!response.ok) {
+						return { username, error: body?.error ?? 'Something went wrong' };
+					}
+					const data = body as ContributionsResponse;
+					return { username, total: data.total_contributions };
+				} catch {
+					return { username, error: 'Failed to reach the battle arena' };
+				}
+			}
+
+			function renderPlayerResult(outcome: FetchOutcome): string {
+				if (outcome.error) {
+					return `<div class="player-result error"><strong>${outcome.username}</strong><p>${outcome.error}</p></div>`;
+				}
+				return `<div class="player-result"><strong>${outcome.username}</strong><p>${outcome.total} contributions</p></div>`;
+			}
+
+			function renderResults(outcomes: FetchOutcome[]): void {
+				const [player1, player2] = outcomes;
+				const rowHtml = `<div class="results-row">${renderPlayerResult(player1)}${renderPlayerResult(player2)}</div>`;
+
+				let winnerHtml = '';
+				if (player1.total !== undefined && player2.total !== undefined) {
+					if (player1.total > player2.total) {
+						winnerHtml = `<p class="winner">🏆 ${player1.username} wins!</p>`;
+					} else if (player2.total > player1.total) {
+						winnerHtml = `<p class="winner">🏆 ${player2.username} wins!</p>`;
+					} else {
+						winnerHtml = `<p class="winner">🤝 It's a tie!</p>`;
+					}
+				}
+
+				results.innerHTML = rowHtml + winnerHtml;
+			}
+
+			form.addEventListener('submit', async (event) => {
+				event.preventDefault();
+
+				const player1 = (document.querySelector<HTMLInputElement>('#player1')!).value.trim();
+				const player2 = (document.querySelector<HTMLInputElement>('#player2')!).value.trim();
+
+				if (!player1 || !player2) {
+					results.innerHTML = '<p class="player-result error">Please enter both usernames.</p>';
+					return;
+				}
+
+				battleButton.disabled = true;
+				results.innerHTML = '<p>Battling...</p>';
+
+				const settled = await Promise.allSettled([
+					fetchContributions(player1),
+					fetchContributions(player2),
+				]);
+
+				const outcomes = settled.map((result, index) =>
+					result.status === 'fulfilled'
+						? result.value
+						: { username: index === 0 ? player1 : player2, error: 'Failed to reach the battle arena' },
+				);
+
+				renderResults(outcomes);
+				battleButton.disabled = false;
+			});
+		</script>
 	</body>
 </html>
