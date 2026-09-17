@@ -22,3 +22,10 @@
 - Keep API handlers typed with `APIRoute`, validate route parameters and remote responses, and return appropriate JSON status codes and content types.
 - Preserve the existing tab indentation and TypeScript strictness. Keep changes focused and avoid unrelated refactors.
 - Use public assets through root-relative paths such as `/favicon.svg` and keep secrets out of client-side code and committed files.
+
+## Retro Arcade Design Guide
+
+- Use `#0a0a1a` for the background, `#5fed83` for green accents, and `#8a2be2` for purple accents.
+- Use the Press Start 2P font for the retro gaming aesthetic.
+- Keep animations smooth and subtle, using neon glows, light CRT scanlines, and restrained retro arcade effects.
+- New UI should remain consistent with the neon retro arcade aesthetic.
