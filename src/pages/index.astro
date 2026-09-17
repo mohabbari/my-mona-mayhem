@@ -22,16 +22,40 @@
 			<p class="tagline">GitHub Contribution Battle Arena</p>
 		</header>
 
-		<form id="battle-form">
+		<form id="battle-form" novalidate>
 			<div class="fighters">
 				<div class="fighter">
 					<label for="player1">Player 1</label>
-					<input id="player1" name="player1" type="text" placeholder="GitHub username" required />
+					<input
+						id="player1"
+						name="player1"
+						type="text"
+						placeholder="GitHub username"
+						autocomplete="username"
+						autocapitalize="none"
+						spellcheck="false"
+						maxlength="39"
+						aria-describedby="player1-error"
+						required
+					/>
+					<p id="player1-error" class="input-error" role="alert" hidden></p>
 				</div>
 				<span class="vs">VS</span>
 				<div class="fighter">
 					<label for="player2">Player 2</label>
-					<input id="player2" name="player2" type="text" placeholder="GitHub username" required />
+					<input
+						id="player2"
+						name="player2"
+						type="text"
+						placeholder="GitHub username"
+						autocomplete="username"
+						autocapitalize="none"
+						spellcheck="false"
+						maxlength="39"
+						aria-describedby="player2-error"
+						required
+					/>
+					<p id="player2-error" class="input-error" role="alert" hidden></p>
 				</div>
 			</div>
 			<button type="submit" id="battle-btn">Battle!</button>
@@ -48,7 +72,7 @@
 				--panel: #121225;
 				--text: #f5f5ff;
 				--muted: #aaaabd;
-				--danger: #ff5277;
+				--danger: #ff3366;
 			}
 
 			* {
@@ -216,6 +240,42 @@
 				color: #75758a;
 			}
 
+			.fighter.has-error input {
+				border-color: var(--danger);
+				outline-color: rgb(255 51 102 / 58%);
+				box-shadow:
+					inset 0 0 16px rgb(255 51 102 / 12%),
+					0 0 8px var(--danger),
+					0 0 22px rgb(255 51 102 / 58%);
+				animation: error-shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+			}
+
+			.fighter.has-error label {
+				color: var(--danger);
+				text-shadow: 0 0 7px rgb(255 51 102 / 80%);
+			}
+
+			.input-error {
+				margin: 0;
+				padding: 0.55rem 0.65rem;
+				background: rgb(255 51 102 / 8%);
+				border-left: 3px solid var(--danger);
+				box-shadow:
+					inset 0 0 12px rgb(255 51 102 / 8%),
+					0 0 12px rgb(255 51 102 / 35%);
+				color: var(--danger);
+				font-size: 0.5rem;
+				line-height: 1.7;
+				text-shadow:
+					0 0 5px rgb(255 51 102 / 95%),
+					0 0 13px rgb(255 51 102 / 65%);
+				animation: error-flicker 1.35s ease-in-out infinite alternate;
+			}
+
+			.input-error[hidden] {
+				display: none;
+			}
+
 			.vs {
 				background: linear-gradient(110deg, var(--green), var(--purple), var(--green));
 				background-clip: text;
@@ -357,8 +417,16 @@
 
 			#results .player-result.error {
 				border-color: var(--danger);
-				box-shadow: 0 0 14px rgb(255 82 119 / 45%);
+				background:
+					linear-gradient(145deg, rgb(45 8 24 / 96%), rgb(14 8 20 / 96%));
+				box-shadow:
+					inset 0 0 24px rgb(255 51 102 / 10%),
+					0 0 8px var(--danger),
+					0 0 24px rgb(255 51 102 / 60%);
 				color: var(--danger);
+				animation:
+					card-reveal 240ms ease-out both,
+					error-shake 420ms 100ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 			}
 
 			#results .player-result.error::before {
@@ -368,7 +436,9 @@
 			#results .player-result.error h2,
 			#results .player-result.error p {
 				color: var(--danger);
-				text-shadow: none;
+				text-shadow:
+					0 0 6px rgb(255 51 102 / 95%),
+					0 0 16px rgb(255 51 102 / 70%);
 			}
 
 			#results .results-vs {
@@ -571,10 +641,65 @@
 				}
 			}
 
-			@media (max-width: 700px) {
+			@keyframes error-shake {
+				10%,
+				90% {
+					transform: translateX(-2px);
+				}
+
+				20%,
+				80% {
+					transform: translateX(4px);
+				}
+
+				30%,
+				50%,
+				70% {
+					transform: translateX(-6px);
+				}
+
+				40%,
+				60% {
+					transform: translateX(6px);
+				}
+			}
+
+			@keyframes error-flicker {
+				from {
+					opacity: 0.86;
+				}
+
+				to {
+					opacity: 1;
+				}
+			}
+
+			@media (max-width: 1024px) {
+				#results .results-row {
+					grid-template-columns: 1fr;
+				}
+
+				#results .results-vs {
+					margin: 0 auto;
+				}
+			}
+
+			@media (max-width: 768px) {
 				body {
 					gap: 1.75rem;
 					padding-inline: 0.75rem;
+				}
+
+				h1 {
+					font-size: clamp(1.5rem, 7vw, 2.4rem);
+				}
+
+				.tagline {
+					font-size: clamp(0.5rem, 2.6vw, 0.65rem);
+				}
+
+				#battle-form {
+					gap: 1.1rem;
 				}
 
 				.fighters {
@@ -586,12 +711,30 @@
 					flex-basis: auto;
 				}
 
-				#results .results-row {
-					grid-template-columns: 1fr;
+				.fighter label {
+					font-size: 0.6rem;
 				}
 
-				#results .results-vs {
-					margin: 0 auto;
+				.fighter input {
+					font-size: 0.65rem;
+				}
+
+				.vs {
+					font-size: 0.9rem;
+				}
+
+				#battle-btn {
+					width: 100%;
+					padding: 0.8rem 1.5rem;
+					font-size: 0.65rem;
+				}
+
+				#results .player-result h2 {
+					font-size: 0.75rem;
+				}
+
+				#results .player-result p {
+					font-size: 0.5rem;
 				}
 
 				#results .contribution-graph {
@@ -619,6 +762,29 @@
 			const form = document.querySelector<HTMLFormElement>('#battle-form')!;
 			const battleButton = document.querySelector<HTMLButtonElement>('#battle-btn')!;
 			const results = document.querySelector<HTMLElement>('#results')!;
+			const usernamePattern = /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/;
+
+			interface PlayerField {
+				label: string;
+				input: HTMLInputElement;
+				wrapper: HTMLElement;
+				error: HTMLElement;
+			}
+
+			const playerFields: PlayerField[] = [
+				{
+					label: 'Player 1',
+					input: document.querySelector<HTMLInputElement>('#player1')!,
+					wrapper: document.querySelector<HTMLInputElement>('#player1')!.closest<HTMLElement>('.fighter')!,
+					error: document.querySelector<HTMLElement>('#player1-error')!,
+				},
+				{
+					label: 'Player 2',
+					input: document.querySelector<HTMLInputElement>('#player2')!,
+					wrapper: document.querySelector<HTMLInputElement>('#player2')!.closest<HTMLElement>('.fighter')!,
+					error: document.querySelector<HTMLElement>('#player2-error')!,
+				},
+			];
 
 			interface ContributionDay {
 				weekday: number;
@@ -644,6 +810,61 @@
 				username: string;
 				data?: ContributionsResponse;
 				error?: string;
+			}
+
+			function setFieldError(field: PlayerField, message: string): void {
+				field.error.textContent = message;
+				field.error.hidden = false;
+				field.input.setAttribute('aria-invalid', 'true');
+				field.wrapper.classList.remove('has-error');
+				void field.wrapper.offsetWidth;
+				field.wrapper.classList.add('has-error');
+			}
+
+			function clearFieldError(field: PlayerField): void {
+				field.error.textContent = '';
+				field.error.hidden = true;
+				field.input.removeAttribute('aria-invalid');
+				field.wrapper.classList.remove('has-error');
+			}
+
+			function getUsernameValidationError(username: string, label: string): string | undefined {
+				if (!username) {
+					return `Enter a GitHub username for ${label}.`;
+				}
+
+				if (!usernamePattern.test(username)) {
+					return `${label} must be a valid GitHub username: 1-39 letters, numbers, or single hyphens, with no hyphen at the start or end.`;
+				}
+
+				return undefined;
+			}
+
+			function validateField(field: PlayerField): string | undefined {
+				const username = field.input.value.trim();
+				const error = getUsernameValidationError(username, field.label);
+
+				if (error) {
+					setFieldError(field, error);
+					return undefined;
+				}
+
+				clearFieldError(field);
+				return username;
+			}
+
+			function createErrorNotice(message: string): HTMLElement {
+				const card = document.createElement('article');
+				card.className = 'player-result error';
+
+				const title = document.createElement('h2');
+				title.textContent = 'Error';
+
+				const detail = document.createElement('p');
+				detail.textContent = message;
+
+				card.append(title, detail);
+				return card;
 			}
 
 			function isContributionsResponse(value: unknown): value is ContributionsResponse {
@@ -796,14 +1017,12 @@
 			form.addEventListener('submit', async (event) => {
 				event.preventDefault();
 
-				const player1 = (document.querySelector<HTMLInputElement>('#player1')!).value.trim();
-				const player2 = (document.querySelector<HTMLInputElement>('#player2')!).value.trim();
+				const player1 = validateField(playerFields[0]);
+				const player2 = validateField(playerFields[1]);
 
 				if (!player1 || !player2) {
-					const error = document.createElement('p');
-					error.className = 'player-result error';
-					error.textContent = 'Please enter both usernames.';
-					results.replaceChildren(error);
+					results.replaceChildren(createErrorNotice('Fix the highlighted username fields before battling.'));
+					playerFields.find((field) => field.input.getAttribute('aria-invalid') === 'true')?.input.focus();
 					return;
 				}
 
@@ -825,6 +1044,17 @@
 					battleButton.textContent = 'Battle!';
 				}
 			});
+
+			for (const field of playerFields) {
+				field.input.addEventListener('input', () => {
+					if (field.input.getAttribute('aria-invalid') === 'true') {
+						validateField(field);
+					}
+				});
+				field.input.addEventListener('blur', () => {
+					validateField(field);
+				});
+			}
 		</script>
 	</body>
 </html>
