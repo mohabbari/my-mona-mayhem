@@ -33,7 +33,7 @@
 
 		<section id="results" aria-live="polite"></section>
 
-		<style>
+		<style is:global>
 			:root {
 				color-scheme: dark;
 			}
@@ -133,7 +133,7 @@
 
 			#results {
 				width: 100%;
-				max-width: 640px;
+				max-width: 1100px;
 				display: flex;
 				flex-direction: column;
 				align-items: center;
@@ -143,18 +143,27 @@
 
 			#results .results-row {
 				width: 100%;
-				display: flex;
-				flex-wrap: wrap;
-				justify-content: center;
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+				align-items: center;
 				gap: 1rem;
 			}
 
 			#results .player-result {
-				flex: 1 1 200px;
+				min-width: 0;
 				background: #161b22;
 				border: 1px solid #30363d;
 				border-radius: 4px;
 				padding: 1rem;
+			}
+
+			#results .player-result h2 {
+				margin: 0;
+				font-size: 1.1rem;
+			}
+
+			#results .player-result p {
+				margin: 0.5rem 0;
 			}
 
 			#results .player-result.error {
@@ -162,9 +171,58 @@
 				color: #f85149;
 			}
 
+			#results .results-vs {
+				display: grid;
+				place-items: center;
+				width: 2.75rem;
+				aspect-ratio: 1;
+				border-radius: 50%;
+				background: #f0883e;
+				color: #0d1117;
+				font-weight: bold;
+			}
+
+			#results .graph-scroll {
+				margin-top: 1rem;
+				overflow-x: auto;
+			}
+
+			#results .contribution-graph {
+				display: flex;
+				justify-content: center;
+				gap: 3px;
+				min-width: max-content;
+			}
+
+			#results .contribution-week {
+				display: grid;
+				grid-template-rows: repeat(7, 9px);
+				gap: 3px;
+			}
+
+			#results .contribution-day {
+				width: 9px;
+				height: 9px;
+				border-radius: 2px;
+			}
+
 			#results .winner {
 				font-size: 1.2rem;
 				color: #39d353;
+			}
+
+			@media (max-width: 700px) {
+				#results .results-row {
+					grid-template-columns: 1fr;
+				}
+
+				#results .results-vs {
+					margin: 0 auto;
+				}
+
+				#results .contribution-graph {
+					justify-content: flex-start;
+				}
 			}
 		</style>
 
@@ -173,53 +231,177 @@
 			const battleButton = document.querySelector<HTMLButtonElement>('#battle-btn')!;
 			const results = document.querySelector<HTMLElement>('#results')!;
 
+			interface ContributionDay {
+				weekday: number;
+				count: number;
+				level: number;
+			}
+
+			interface ContributionWeek {
+				index: number;
+				first_day: string;
+				contribution_days: ContributionDay[];
+			}
+
 			interface ContributionsResponse {
+				from: string;
+				to: string;
 				total_contributions: number;
+				colors_full: string[];
+				weeks: ContributionWeek[];
 			}
 
 			interface FetchOutcome {
 				username: string;
-				total?: number;
+				data?: ContributionsResponse;
 				error?: string;
+			}
+
+			function isContributionsResponse(value: unknown): value is ContributionsResponse {
+				if (!value || typeof value !== 'object') {
+					return false;
+				}
+
+				const data = value as Partial<ContributionsResponse>;
+				return (
+					typeof data.from === 'string' &&
+					typeof data.to === 'string' &&
+					typeof data.total_contributions === 'number' &&
+					Array.isArray(data.colors_full) &&
+					data.colors_full.every((color) => typeof color === 'string') &&
+					Array.isArray(data.weeks) &&
+					data.weeks.every(
+						(week) =>
+							typeof week.index === 'number' &&
+							typeof week.first_day === 'string' &&
+							Array.isArray(week.contribution_days) &&
+							week.contribution_days.every(
+								(day) =>
+									typeof day.weekday === 'number' &&
+									typeof day.count === 'number' &&
+									typeof day.level === 'number',
+							),
+					)
+				);
 			}
 
 			async function fetchContributions(username: string): Promise<FetchOutcome> {
 				try {
 					const response = await fetch(`/api/contributions/${encodeURIComponent(username)}`);
-					const body = await response.json();
+					const body: unknown = await response.json();
 					if (!response.ok) {
-						return { username, error: body?.error ?? 'Something went wrong' };
+						const message =
+							body && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
+								? body.error
+								: 'Something went wrong';
+						return { username, error: message };
 					}
-					const data = body as ContributionsResponse;
-					return { username, total: data.total_contributions };
+					if (!isContributionsResponse(body)) {
+						return { username, error: 'Received invalid contribution data' };
+					}
+					return { username, data: body };
 				} catch {
 					return { username, error: 'Failed to reach the battle arena' };
 				}
 			}
 
-			function renderPlayerResult(outcome: FetchOutcome): string {
-				if (outcome.error) {
-					return `<div class="player-result error"><strong>${outcome.username}</strong><p>${outcome.error}</p></div>`;
+			function formatDate(date: string): string {
+				return new Intl.DateTimeFormat('en', {
+					year: 'numeric',
+					month: 'short',
+					day: 'numeric',
+					timeZone: 'UTC',
+				}).format(new Date(`${date}T00:00:00Z`));
+			}
+
+			function createContributionGraph(data: ContributionsResponse): HTMLElement {
+				const scroll = document.createElement('div');
+				scroll.className = 'graph-scroll';
+
+				const graph = document.createElement('div');
+				graph.className = 'contribution-graph';
+				graph.setAttribute('role', 'img');
+				graph.setAttribute('aria-label', `Contribution graph from ${formatDate(data.from)} to ${formatDate(data.to)}`);
+
+				for (const week of data.weeks) {
+					const weekElement = document.createElement('div');
+					weekElement.className = 'contribution-week';
+
+					for (const day of week.contribution_days) {
+						const square = document.createElement('span');
+						const date = new Date(`${week.first_day}T00:00:00Z`);
+						date.setUTCDate(date.getUTCDate() + day.weekday);
+						const dateLabel = formatDate(date.toISOString().slice(0, 10));
+						const level = Math.max(0, Math.min(day.level, data.colors_full.length - 1));
+
+						square.className = 'contribution-day';
+						square.style.backgroundColor = data.colors_full[level] ?? '#ebedf0';
+						square.title = `${day.count} contribution${day.count === 1 ? '' : 's'} on ${dateLabel}`;
+						square.setAttribute('aria-hidden', 'true');
+						weekElement.append(square);
+					}
+
+					graph.append(weekElement);
 				}
-				return `<div class="player-result"><strong>${outcome.username}</strong><p>${outcome.total} contributions</p></div>`;
+
+				scroll.append(graph);
+				return scroll;
+			}
+
+			function createPlayerResult(outcome: FetchOutcome): HTMLElement {
+				const card = document.createElement('article');
+				card.className = 'player-result';
+
+				const username = document.createElement('h2');
+				username.textContent = outcome.username;
+				card.append(username);
+
+				if (outcome.error) {
+					card.classList.add('error');
+					const error = document.createElement('p');
+					error.textContent = outcome.error;
+					card.append(error);
+					return card;
+				}
+
+				const data = outcome.data!;
+				const total = document.createElement('p');
+				total.textContent = `${data.total_contributions.toLocaleString()} contributions`;
+
+				const range = document.createElement('p');
+				range.textContent = `${formatDate(data.from)} – ${formatDate(data.to)}`;
+
+				card.append(total, range, createContributionGraph(data));
+				return card;
 			}
 
 			function renderResults(outcomes: FetchOutcome[]): void {
 				const [player1, player2] = outcomes;
-				const rowHtml = `<div class="results-row">${renderPlayerResult(player1)}${renderPlayerResult(player2)}</div>`;
+				const row = document.createElement('div');
+				row.className = 'results-row';
 
-				let winnerHtml = '';
-				if (player1.total !== undefined && player2.total !== undefined) {
-					if (player1.total > player2.total) {
-						winnerHtml = `<p class="winner">🏆 ${player1.username} wins!</p>`;
-					} else if (player2.total > player1.total) {
-						winnerHtml = `<p class="winner">🏆 ${player2.username} wins!</p>`;
+				const versus = document.createElement('span');
+				versus.className = 'results-vs';
+				versus.textContent = 'VS';
+				versus.setAttribute('aria-hidden', 'true');
+
+				row.append(createPlayerResult(player1), versus, createPlayerResult(player2));
+				results.replaceChildren(row);
+
+				if (player1.data && player2.data) {
+					const winner = document.createElement('p');
+					winner.className = 'winner';
+
+					if (player1.data.total_contributions > player2.data.total_contributions) {
+						winner.textContent = `🏆 ${player1.username} wins!`;
+					} else if (player2.data.total_contributions > player1.data.total_contributions) {
+						winner.textContent = `🏆 ${player2.username} wins!`;
 					} else {
-						winnerHtml = `<p class="winner">🤝 It's a tie!</p>`;
+						winner.textContent = `🤝 It's a tie!`;
 					}
-				}
 
-				results.innerHTML = rowHtml + winnerHtml;
+					results.append(winner);
+				}
 			}
 
 			form.addEventListener('submit', async (event) => {
@@ -229,26 +411,29 @@
 				const player2 = (document.querySelector<HTMLInputElement>('#player2')!).value.trim();
 
 				if (!player1 || !player2) {
-					results.innerHTML = '<p class="player-result error">Please enter both usernames.</p>';
+					const error = document.createElement('p');
+					error.className = 'player-result error';
+					error.textContent = 'Please enter both usernames.';
+					results.replaceChildren(error);
 					return;
 				}
 
 				battleButton.disabled = true;
-				results.innerHTML = '<p>Battling...</p>';
+				battleButton.textContent = 'Battling...';
+				const loading = document.createElement('p');
+				loading.textContent = 'Loading contribution data...';
+				results.replaceChildren(loading);
 
-				const settled = await Promise.allSettled([
-					fetchContributions(player1),
-					fetchContributions(player2),
-				]);
-
-				const outcomes = settled.map((result, index) =>
-					result.status === 'fulfilled'
-						? result.value
-						: { username: index === 0 ? player1 : player2, error: 'Failed to reach the battle arena' },
-				);
-
-				renderResults(outcomes);
-				battleButton.disabled = false;
+				try {
+					const outcomes = await Promise.all([
+						fetchContributions(player1),
+						fetchContributions(player2),
+					]);
+					renderResults(outcomes);
+				} finally {
+					battleButton.disabled = false;
+					battleButton.textContent = 'Battle!';
+				}
 			});
 		</script>
 	</body>
